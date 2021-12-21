@@ -1,0 +1,30 @@
+name: Deploy Tests
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-and-test:
+    name: Deploy and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Minikube-Kubernetes
+        uses: manusa/actions-setup-minikube@v2.4.3
+        with:
+          minikube version: v1.24.0
+          kubernetes version: v1.23.0
+          github token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup Java 17
+        uses: actions/setup-java@v2
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Build
+        run: mvn -Pnative package
+      - name: Run and test from host
+        run: timeout 5s ./target/kubernetes-controller-0.0.1-SNAPSHOT-runner > out.txt || grep "node:" out.txt
+      - name: Test
+        run: kubectl cluster-info
