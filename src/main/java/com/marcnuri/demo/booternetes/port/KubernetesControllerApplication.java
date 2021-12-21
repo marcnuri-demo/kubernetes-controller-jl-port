@@ -18,7 +18,6 @@ import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 
 @QuarkusMain
 public class KubernetesControllerApplication implements QuarkusApplication {
@@ -41,10 +40,7 @@ public class KubernetesControllerApplication implements QuarkusApplication {
     sharedInformerFactory.startAllRegisteredInformers().get();
     final var nodeHandler = sharedInformerFactory.getExistingSharedIndexInformer(Node.class);
     nodeHandler.addEventHandler(nodeEventHandler);
-    while (nodeHandler.isRunning()) {
-      // Controller loop
-      TimeUnit.MILLISECONDS.sleep(500L);
-    }
+    Quarkus.waitForExit();
     return 0;
   }
 
