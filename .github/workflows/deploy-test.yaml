@@ -26,5 +26,12 @@ jobs:
         run: mvn -Pnative package
       - name: Run and test from host
         run: timeout 5s ./target/kubernetes-controller-0.0.1-SNAPSHOT-runner > out.txt || grep "node:" out.txt
-      - name: Test
-        run: kubectl cluster-info
+      - name: Deploy
+        run: mvn -Pnative k8s:build k8s:resource k8s:apply
+      - name: Test Deployment
+        run: |
+          kubectl wait --for=condition=available --timeout=60s --namespace kubernetes-controller-java deployments.apps/kubernetes-controller
+          kubectl logs --namespace kubernetes-controller-java --tail=-1 --selector app=kubernetes-controller | grep "node:"
+      - name: Print Application Logs
+        run: |
+          kubectl logs --namespace kubernetes-controller-java --tail=-1 --selector app=kubernetes-controller

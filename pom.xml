@@ -13,6 +13,8 @@
     <version.exec-maven-plugin>3.0.0</version.exec-maven-plugin>
     <version.jkube>1.5.1</version.jkube>
     <version.quarkus>2.5.2.Final</version.quarkus>
+    <jkube.namespace>kubernetes-controller-java</jkube.namespace>
+    <jkube.enricher.jkube-namespace.namespace>${jkube.namespace}</jkube.enricher.jkube-namespace.namespace>
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -52,6 +54,11 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.eclipse.jkube</groupId>
+        <artifactId>kubernetes-maven-plugin</artifactId>
+        <version>1.5.1</version>
       </plugin>
     </plugins>
   </build>
