@@ -1,8 +1,10 @@
 package com.marcnuri.demo.booternetes.port;
 
+import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
@@ -22,14 +24,21 @@ import java.util.concurrent.TimeUnit;
 public class KubernetesControllerApplication implements QuarkusApplication {
 
   @Inject
+  KubernetesClient client;
+  @Inject
   SharedInformerFactory sharedInformerFactory;
   @Inject
   ResourceEventHandler<Node> nodeEventHandler;
 
   @Override
   public int run(String... args) throws Exception {
-    final var startAsync = sharedInformerFactory.startAllRegisteredInformers();
-    startAsync.get();
+    try {
+      client.nodes().list(new ListOptionsBuilder().withLimit(1L).build());
+    } catch (KubernetesClientException ex) {
+      System.out.println(ex.getMessage());
+      return 1;
+    }
+    sharedInformerFactory.startAllRegisteredInformers().get();
     final var nodeHandler = sharedInformerFactory.getExistingSharedIndexInformer(Node.class);
     nodeHandler.addEventHandler(nodeEventHandler);
     while (nodeHandler.isRunning()) {
@@ -50,8 +59,11 @@ public class KubernetesControllerApplication implements QuarkusApplication {
   @ApplicationScoped
   static final class KubernetesControllerApplicationConfig {
 
+    @Inject
+    KubernetesClient client;
+
     @Singleton
-    SharedInformerFactory sharedInformerFactory(KubernetesClient client) {
+    SharedInformerFactory sharedInformerFactory() {
       return client.informers();
     }
 
@@ -67,10 +79,13 @@ public class KubernetesControllerApplication implements QuarkusApplication {
 
     @Singleton
     ResourceEventHandler<Node> nodeReconciler(SharedIndexInformer<Node> nodeInformer, SharedIndexInformer<Pod> podInformer) {
-      return new ResourceEventHandler<Node>() {
+      return new ResourceEventHandler<>() {
 
         @Override
         public void onAdd(Node node) {
+          // n.b. This is executed in the Watcher's  WebSocket Thread
+          // Ideally this should be executed by a Processor running in a dedicated thread
+          // This method should only add an item to the Processor's queue.
           System.out.printf("node: %s%n", Objects.requireNonNull(node.getMetadata()).getName());
           podInformer.getIndexer().list().stream()
             .map(pod -> Objects.requireNonNull(pod.getMetadata()).getName())
@@ -84,6 +99,5 @@ public class KubernetesControllerApplication implements QuarkusApplication {
         public void onDelete(Node node, boolean deletedFinalStateUnknown) {}
       };
     }
-
   }
 }
